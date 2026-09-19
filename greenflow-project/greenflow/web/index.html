@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenFlow — Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  :root { --gf-green: #2F9E5B; --gf-red: #D64545; --gf-dark: #1F2A24; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F7F9F7; color: var(--gf-dark); }
+  .navbar-brand { font-weight: 700; }
+  .card-stat { border: 1px solid #E6E9E7; border-radius: 10px; }
+  .card-stat .label { font-size: 0.8rem; color: #7A857E; text-transform: none; }
+  .card-stat .value { font-size: 1.6rem; font-weight: 700; }
+  .badge-lancar { background: var(--gf-green); }
+  .badge-padat { background: #E0A63A; }
+  .badge-macet { background: var(--gf-red); }
+  .badge-hijau { background: var(--gf-green); }
+  .badge-kuning { background: #E0A63A; }
+  .badge-merah { background: var(--gf-red); }
+  table th { font-size: 0.8rem; color: #7A857E; font-weight: 600; }
+  #status-line { font-size: 0.85rem; color: #7A857E; }
+  select#location-select { max-width: 320px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-white border-bottom">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">GreenFlow</a>
+    <span id="status-line">Memuat data…</span>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <label for="location-select" class="form-label mb-0 me-2">Lokasi:</label>
+    <select id="location-select" class="form-select"></select>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card-stat p-3">
+        <div class="label">Status Lalu Lintas</div>
+        <div class="value" id="stat-traffic">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-stat p-3">
+        <div class="label">Jumlah Kendaraan</div>
+        <div class="value" id="stat-count">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-stat p-3">
+        <div class="label">Fase Saat Data Diambil</div>
+        <div class="value" id="stat-light">–</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card-stat p-3">
+        <div class="label">Level Baterai</div>
+        <div class="value" id="stat-battery">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-stat p-3">
+    <h6 class="mb-3">Riwayat Data Terbaru</h6>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Lokasi</th>
+            <th>Kendaraan</th>
+            <th>Fase</th>
+            <th>Durasi Hijau</th>
+            <th>Baterai</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="log-table-body">
+          <tr><td colspan="7" class="text-muted text-center py-4">Belum ada data</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.GREENFLOW_CONFIG;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const statusLine = document.getElementById("status-line");
+  const tableBody = document.getElementById("log-table-body");
+  const locationSelect = document.getElementById("location-select");
+
+  function badgeClass(prefix, value) {
+    const key = (value || "").toString().toLowerCase();
+    return `badge ${prefix}-${key}`;
+  }
+
+  async function populateLocations() {
+    const { data, error } = await supabase
+      .from("greenflow_logs")
+      .select("location")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data) return;
+    const seen = new Set();
+    data.forEach(r => seen.add(r.location));
+    locationSelect.innerHTML = `<option value="">Semua lokasi</option>` +
+      [...seen].map(loc => `<option value="${loc}">${loc}</option>`).join("");
+  }
+
+  async function loadData() {
+    let query = supabase
+      .from("greenflow_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const loc = locationSelect.value;
+    if (loc) query = query.eq("location", loc);
+
+    const { data, error } = await query;
+
+    if (error) {
+      statusLine.textContent = "Gagal ambil data: " + error.message;
+      console.error(error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      statusLine.textContent = "Terhubung ke Supabase — belum ada data masuk";
+      return;
+    }
+
+    const latest = data[0];
+    document.getElementById("stat-traffic").innerHTML =
+      `<span class="${badgeClass('badge', latest.traffic_status)}">${latest.traffic_status}</span>`;
+    document.getElementById("stat-count").textContent = latest.vehicle_count;
+    document.getElementById("stat-light").innerHTML =
+      `<span class="${badgeClass('badge', latest.light_status)}">${latest.light_status ?? '-'}</span>`;
+    document.getElementById("stat-battery").textContent = (latest.battery_level ?? '-') + "%";
+
+    tableBody.innerHTML = data.map(row => `
+      <tr>
+        <td>${new Date(row.created_at).toLocaleString("id-ID")}</td>
+        <td>${row.location}</td>
+        <td>${row.vehicle_count}</td>
+        <td><span class="${badgeClass('badge', row.light_status)}">${row.light_status ?? '-'}</span></td>
+        <td>${row.green_duration ?? '-'}s</td>
+        <td>${row.battery_level ?? '-'}%</td>
+        <td><span class="${badgeClass('badge', row.traffic_status)}">${row.traffic_status}</span></td>
+      </tr>
+    `).join("");
+
+    statusLine.textContent = "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
+  }
+
+  locationSelect.addEventListener("change", loadData);
+
+  populateLocations().then(loadData);
+  setInterval(loadData, 5000); // auto-refresh tiap 5 detik
+</script>
+
+</body>
+</html>

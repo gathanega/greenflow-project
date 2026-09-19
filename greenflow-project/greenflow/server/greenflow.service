@@ -1,0 +1,15 @@
+[Unit]
+Description=GreenFlow traffic processing server
+After=network.target
+
+[Service]
+Type=simple
+User=greenflow
+WorkingDirectory=/opt/greenflow/server
+Environment="PATH=/opt/greenflow/server/venv/bin"
+ExecStart=/opt/greenflow/server/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

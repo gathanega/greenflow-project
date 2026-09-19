@@ -1,0 +1,27 @@
+# Copy this file to config.yaml and fill in your values.
+# config.yaml is read by app.py at startup.
+
+supabase:
+  url: "https://ISI_PROJECT_REF.supabase.co"
+  service_key: "ISI_SERVICE_ROLE_KEY"   # Project Settings -> API -> service_role (server-side only, never expose this in the website!)
+
+cctv_poll_interval_seconds: 10
+
+# One entry per intersection/location. The `location` string here MUST
+# match:
+#   - the ?location=... query param the ESP32-S3 firmware sends (Mode A)
+#   - the LOCATION_NAME the ESP32-C6 firmware polls with
+locations:
+  "Simpang Jl. Merdeka - Jl. Sudirman":
+    mode: esp32              # this location is fed by an ESP32-S3 camera (Mode A) -> nothing else needed here
+    calibration_max_count: 20  # vehicle count that should map to the MAXIMUM green time (420s)
+    density_low: 5            # below this count -> LANCAR
+    density_high: 15          # at/above this count -> MACET
+
+  "Simpang Jl. Diponegoro":
+    mode: cctv                # this location is fed by an existing online CCTV API instead (Mode B)
+    cctv_snapshot_url: "https://contoh-cctv-provider.example/api/snapshot?cam=diponegoro"
+    device_id: "cctv-diponegoro"
+    calibration_max_count: 25
+    density_low: 6
+    density_high: 18
