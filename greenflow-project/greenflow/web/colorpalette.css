@@ -1,0 +1,82 @@
+    /* Color Palette */
+
+    :root {
+        --charcoal: #4d5057;
+        --shamrock: #4caf70;
+        --dust-grey: #d9d9d9;
+        --white: #ffffff;
+        --teal: #3BC14A;
+    }
+
+    /* Body */
+
+    body {
+        font-family: "Poppins", sans-serif;
+        min-height: 100vh;
+    }
+
+    /* Gradient */
+
+    .greenflow-gradient {
+        min-height: 100vh;
+        background: linear-gradient(
+            to bottom,
+            var(--shamrock) 40%,
+            var(--teal) 60%
+        );  
+        background-repeat: no-repeat;
+        background-size: 100% 100%;
+    }
+    /* Navbar */
+
+    .navbar {
+        background-color: var(--charcoal);
+        padding: 2px 20px;
+    }
+
+    /* Logo */
+
+    .logo {
+        width: 40px;
+    }
+
+    /* GreenFlow navbar */
+
+    .navbar-brand {
+        font-size: 28px;
+        font-weight: 600;
+    }
+
+    .green {
+        color: var(--dust-grey);
+    }
+
+    .flow {
+        color: var(--shamrock);
+    }
+
+    .dashboard {
+        color: var(--dust-grey);
+        margin-left: 18px;
+    }
+
+    /* Location */
+
+    .location-btn {
+        width: 250px;
+        background-color: var(--shamrock);
+        color: var(--white);
+        font-weight: 600;
+    }
+
+    /* Dashboard */
+
+    .dashboard-container {
+        padding-top: 25px;
+    }
+
+    .dashboard-card {
+        background-color: var(--white);
+        height: 260px;
+        border-radius: 8px;
+    }

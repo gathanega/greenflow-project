@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- CSS -->
+    <link href="colorpalette.css" rel="stylesheet">
+
+    <!-- Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <title>Dashboard</title>
+</head>
+
+<body class="greenflow-gradient">
+
+    <!-- Navbar -->
+
+    <nav class="navbar">
+        <div class="container-fluid px-4">
+
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="pictures/Color Logo Png.png" class="logo">
+
+                <span class="green">GREEN</span>
+                <span class="flow">FLOW</span>
+                <span class="dashboard">DASHBOARD</span>
+            </a>
+
+            <div class="dropdown">
+                <button class="btn dropdown-toggle location-btn"
+                        type="button"
+                        data-bs-toggle="dropdown">
+                    LOCATION
+                </button>
+
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">Jl. Lokasi 1</a></li>
+                    <li><a class="dropdown-item" href="#">Jl. Lokasi 2</a></li>
+                    <li><a class="dropdown-item" href="#">Jl. Lokasi 3</a></li>
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- Dashboard -->
+
+    <div class="container dashboard-container">
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+                <div class="dashboard-card"></div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="dashboard-card"></div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="dashboard-card"></div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="dashboard-card"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>
