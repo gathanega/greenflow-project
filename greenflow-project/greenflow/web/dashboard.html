@@ -1,84 +1,429 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
 
     <!-- CSS -->
-    <link href="colorpalette.css" rel="stylesheet">
+    <link href="colorpalette.css" rel="stylesheet" />
 
     <!-- Poppins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
     <title>Dashboard</title>
-</head>
 
-<body class="greenflow-gradient">
+    <style>
+      .dashboard-card {
+        min-height: 140px;
+        background: #fff;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1.25rem 1.75rem;
+      }
+      .dashboard-card .label {
+        font-size: 0.75rem;
+        letter-spacing: 0.03em;
+        color: #7a857e;
+        margin-bottom: 0.6rem;
+        text-transform: uppercase;
+      }
+      .dashboard-card .value-row {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .dashboard-card .value {
+        font-size: 1.7rem;
+        font-weight: 700;
+      }
+      .dashboard-card .sub-value {
+        font-size: 0.8rem;
+        color: #7a857e;
+        margin-top: 0.5rem;
+      }
+      .dashboard-card .icon-wrap {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+      }
+      .status-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .text-lancar,
+      .text-hijau {
+        color: #2f9e5b;
+      }
+      .text-padat,
+      .text-kuning {
+        color: #e0a63a;
+      }
+      .text-macet,
+      .text-merah {
+        color: #d64545;
+      }
+      .bg-lancar,
+      .bg-hijau {
+        background: #2f9e5b;
+      }
+      .bg-padat,
+      .bg-kuning {
+        background: #e0a63a;
+      }
+      .bg-macet,
+      .bg-merah {
+        background: #d64545;
+      }
+      #status-line {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        margin-right: 1rem;
+      }
+      .location-btn.active-location {
+        font-weight: 700;
+      }
+    </style>
+  </head>
 
+  <body class="greenflow-gradient">
     <!-- Navbar -->
 
     <nav class="navbar">
-        <div class="container-fluid px-4">
+      <div class="container-fluid px-4">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <img src="pictures/Color Logo Png.png" class="logo" />
 
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img src="pictures/Color Logo Png.png" class="logo">
+          <span class="green">GREEN</span>
+          <span class="flow">FLOW</span>
+          <span class="dashboard">DASHBOARD</span>
+        </a>
 
-                <span class="green">GREEN</span>
-                <span class="flow">FLOW</span>
-                <span class="dashboard">DASHBOARD</span>
-            </a>
+        <div class="d-flex align-items-center">
+          <span id="status-line">Memuat data…</span>
 
-            <div class="dropdown">
-                <button class="btn dropdown-toggle location-btn"
-                        type="button"
-                        data-bs-toggle="dropdown">
-                    LOCATION
-                </button>
+          <div class="dropdown">
+            <button
+              class="btn dropdown-toggle location-btn"
+              id="location-btn"
+              type="button"
+              data-bs-toggle="dropdown"
+            >
+              LOCATION
+            </button>
 
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#">Jl. Lokasi 1</a></li>
-                    <li><a class="dropdown-item" href="#">Jl. Lokasi 2</a></li>
-                    <li><a class="dropdown-item" href="#">Jl. Lokasi 3</a></li>
-                </ul>
-            </div>
-
+            <ul class="dropdown-menu" id="location-menu">
+              <li>
+                <a class="dropdown-item" href="#" data-location=""
+                  >Semua Lokasi</a
+                >
+              </li>
+            </ul>
+          </div>
         </div>
+      </div>
     </nav>
 
     <!-- Dashboard -->
 
     <div class="container dashboard-container">
-        <div class="row g-3">
-
-            <div class="col-12 col-md-6">
-                <div class="dashboard-card"></div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="dashboard-card">
+            <div class="label">Status Lalu Lintas</div>
+            <div class="value-row">
+              <svg
+                class="icon-wrap"
+                viewBox="0 0 24 24"
+                fill="none"
+                id="icon-traffic"
+              >
+                <path
+                  d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <rect
+                  x="3.5"
+                  y="11"
+                  width="17"
+                  height="6"
+                  rx="1.5"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                />
+                <circle cx="7" cy="17.5" r="1.5" fill="currentColor" />
+                <circle cx="17" cy="17.5" r="1.5" fill="currentColor" />
+              </svg>
+              <div class="value" id="stat-traffic">–</div>
             </div>
-
-            <div class="col-12 col-md-6">
-                <div class="dashboard-card"></div>
-            </div>
-
-            <div class="col-12 col-md-6">
-                <div class="dashboard-card"></div>
-            </div>
-
-            <div class="col-12 col-md-6">
-                <div class="dashboard-card"></div>
-            </div>
-
+          </div>
         </div>
+
+        <div class="col-12 col-md-6">
+          <div class="dashboard-card">
+            <div class="label" id="label-duration">Durasi Lampu</div>
+            <div class="value-row">
+              <svg class="icon-wrap" viewBox="0 0 24 24" fill="none">
+                <rect
+                  x="8"
+                  y="2.5"
+                  width="8"
+                  height="17"
+                  rx="4"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                />
+                <circle cx="12" cy="7" r="1.6" fill="currentColor" />
+                <circle cx="12" cy="11" r="1.6" fill="currentColor" />
+                <circle cx="12" cy="15" r="1.6" fill="currentColor" />
+                <line
+                  x1="12"
+                  y1="19.5"
+                  x2="12"
+                  y2="21.5"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <div class="value" id="stat-duration">–</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="dashboard-card">
+            <div class="label">Status Terakhir</div>
+            <div class="value-row">
+              <div class="status-dot" id="dot-status"></div>
+              <div class="value" id="stat-lastStatus">–</div>
+            </div>
+            <div class="sub-value" id="stat-elapsed">
+              Update Terakhir = – detik lalu
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="dashboard-card">
+            <div class="label">Waktu &amp; Tanggal</div>
+            <div class="value" id="stat-date">–</div>
+            <div class="value" id="stat-time">–</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Bootstrap JS -->
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
-</body>
+    <!-- Supabase config (isi SUPABASE_URL & SUPABASE_ANON_KEY di sini) -->
+    <script src="config.js"></script>
 
+    <script type="module">
+      import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.GREENFLOW_CONFIG;
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const statusLine = document.getElementById("status-line");
+      const locationMenu = document.getElementById("location-menu");
+      const locationBtn = document.getElementById("location-btn");
+
+      let currentLocation = "";
+
+      function statusKey(value) {
+        return (value || "").toString().toLowerCase();
+      }
+
+      let lastCreatedAt = null; // dipakai buat hitung "X detik lalu" secara live
+
+      function formatTanggal(date) {
+        return new Intl.DateTimeFormat("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }).format(date);
+      }
+
+      function formatJam(date) {
+        return new Intl.DateTimeFormat("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+      }
+
+      function updateElapsed() {
+        const el = document.getElementById("stat-elapsed");
+        if (!lastCreatedAt) {
+          el.textContent = "Update Terakhir = – detik lalu";
+          return;
+        }
+        const diffSec = Math.max(
+          0,
+          Math.floor((Date.now() - lastCreatedAt.getTime()) / 1000),
+        );
+        const text =
+          diffSec < 60
+            ? `${diffSec} detik lalu`
+            : `${Math.floor(diffSec / 60)} menit lalu`;
+        el.textContent = `Update Terakhir = ${text}`;
+      }
+      setInterval(updateElapsed, 1000);
+
+      async function populateLocations() {
+        const { data, error } = await supabase
+          .from("greenflow_logs")
+          .select("location")
+          .order("created_at", { ascending: false })
+          .limit(200);
+
+        if (error || !data) return;
+
+        const seen = new Set();
+        data.forEach((r) => seen.add(r.location));
+
+        locationMenu.innerHTML =
+          `<li><a class="dropdown-item" href="#" data-location="">Semua Lokasi</a></li>` +
+          [...seen]
+            .map(
+              (loc) =>
+                `<li><a class="dropdown-item" href="#" data-location="${loc}">${loc}</a></li>`,
+            )
+            .join("");
+
+        // pasang event listener setelah render
+        locationMenu.querySelectorAll(".dropdown-item").forEach((item) => {
+          item.addEventListener("click", (e) => {
+            e.preventDefault();
+            currentLocation = item.dataset.location;
+            locationBtn.textContent = currentLocation || "LOCATION";
+            loadData();
+          });
+        });
+      }
+
+      function renderStats(latest) {
+        const trafficEl = document.getElementById("stat-traffic");
+        const iconTraffic = document.getElementById("icon-traffic");
+        const durationLabel = document.getElementById("label-duration");
+        const durationEl = document.getElementById("stat-duration");
+        const dotEl = document.getElementById("dot-status");
+        const lastStatusEl = document.getElementById("stat-lastStatus");
+        const dateEl = document.getElementById("stat-date");
+        const timeEl = document.getElementById("stat-time");
+
+        if (!latest) {
+          trafficEl.textContent = "–";
+          iconTraffic.className = "icon-wrap";
+          durationEl.textContent = "–";
+          dotEl.className = "status-dot";
+          lastStatusEl.textContent = "–";
+          dateEl.textContent = "–";
+          timeEl.textContent = "–";
+          lastCreatedAt = null;
+          updateElapsed();
+          return;
+        }
+
+        const trafficKey = statusKey(latest.traffic_status);
+        const lightKey = statusKey(latest.light_status);
+
+        trafficEl.textContent = latest.traffic_status ?? "–";
+        trafficEl.className = `value text-${trafficKey}`;
+        iconTraffic.className = `icon-wrap text-${trafficKey}`;
+
+        durationLabel.textContent = latest.light_status
+          ? `Durasi Lampu ${latest.light_status}`
+          : "Durasi Lampu";
+        durationEl.textContent =
+          latest.green_duration != null ? `${latest.green_duration} dtk` : "–";
+        durationEl.className = `value text-${lightKey}`;
+
+        dotEl.className = `status-dot bg-${trafficKey}`;
+        lastStatusEl.textContent = latest.traffic_status ?? "–";
+        lastStatusEl.className = `value text-${trafficKey}`;
+
+        const created = new Date(latest.created_at);
+        dateEl.textContent = formatTanggal(created);
+        timeEl.textContent = formatJam(created);
+
+        lastCreatedAt = created;
+        updateElapsed();
+      }
+
+      async function loadData() {
+        // initial load saja (data terakhir saat halaman dibuka).
+        // update selanjutnya ditangani oleh realtime listener di bawah.
+        let query = supabase
+          .from("greenflow_logs")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (currentLocation) query = query.eq("location", currentLocation);
+
+        const { data, error } = await query;
+
+        if (error) {
+          statusLine.textContent = "Gagal ambil data: " + error.message;
+          console.error(error);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          statusLine.textContent =
+            "Terhubung ke Supabase — belum ada data masuk";
+          renderStats(null);
+          return;
+        }
+
+        renderStats(data[0]);
+        statusLine.textContent =
+          "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
+      }
+
+      // Realtime: dengarkan setiap row baru yang masuk ke greenflow_logs,
+      // lalu update tampilan tanpa perlu polling/refresh berulang.
+      supabase
+        .channel("greenflow_logs_changes")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "greenflow_logs" },
+          (payload) => {
+            const row = payload.new;
+            // hanya update tampilan kalau lokasinya cocok dengan filter aktif
+            if (currentLocation && row.location !== currentLocation) return;
+            renderStats(row);
+            statusLine.textContent =
+              "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
+          },
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            statusLine.textContent = "Realtime aktif — menunggu data…";
+          }
+        });
+
+      populateLocations().then(loadData);
+    </script>
+  </body>
 </html>
