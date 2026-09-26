@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,7 +21,7 @@
       rel="stylesheet"
     />
 
-    <title>Dashboard</title>
+    <title>GreenFlow — Dashboard</title>
 
     <style>
       .dashboard-card {
@@ -97,16 +97,82 @@
       .location-btn.active-location {
         font-weight: 700;
       }
+      /* Warna latar untuk badge di tabel Riwayat Data Terbaru
+         (sebelumnya ketinggalan waktu digabung dari indexold.html,
+         menyebabkan teks putih tanpa latar jadi tak terlihat) */
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(
+          to bottom,
+          #4caf70 40%,
+          #3BC14A 60%
+        );
+        transition: opacity 0.5s ease;
+      }
+      #splash-screen.splash-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-screen .splash-logo {
+        width: 120px;
+        height: auto;
+        animation: splash-pulse 1.4s ease-in-out infinite;
+      }
+      #splash-screen .splash-text {
+        margin-top: 1.25rem;
+        color: #fff;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        font-size: 1.1rem;
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.08); opacity: 0.85; }
+      }
+      .badge-lancar { background: #2f9e5b; }
+      .badge-padat { background: #e0a63a; }
+      .badge-macet { background: #d64545; }
+      .badge-hijau { background: #2f9e5b; }
+      .badge-kuning { background: #e0a63a; }
+      .badge-merah { background: #d64545; }
+
+      /* Warna latar badge di tabel Riwayat (Fase & Status). Bootstrap's
+         base .badge class only sets white text, tidak ada background
+         bawaan — tanpa class ini teksnya putih di atas kartu putih. */
+      .badge-lancar,
+      .badge-hijau {
+        background: #2f9e5b;
+      }
+      .badge-padat,
+      .badge-kuning {
+        background: #e0a63a;
+      }
+      .badge-macet,
+      .badge-merah {
+        background: #d64545;
+      }
     </style>
   </head>
 
   <body class="greenflow-gradient">
+    <!-- Splash / loading screen -->
+    <div id="splash-screen">
+      <img src="pictures/Color_Logo_Png.png" class="splash-logo" alt="GreenFlow logo" />
+      <div class="splash-text">Memuat GreenFlow…</div>
+    </div>
+
     <!-- Navbar -->
 
     <nav class="navbar">
       <div class="container-fluid px-4">
         <a class="navbar-brand d-flex align-items-center" href="#">
-          <img src="pictures/Color Logo Png.png" class="logo" />
+          <img src="pictures/Color_Logo_Png.png" class="logo" alt="GreenFlow logo" />
 
           <span class="green">GREEN</span>
           <span class="flow">FLOW</span>
@@ -229,6 +295,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Riwayat data, dibawa dari indexold.html supaya histori tetap terlihat -->
+      <div class="row g-3 mt-1">
+        <div class="col-12">
+          <div class="dashboard-card" style="height: auto; align-items: stretch;">
+            <h6 class="mb-3">Riwayat Data Terbaru</h6>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Lokasi</th>
+                    <th>Kendaraan</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="log-table-body">
+                  <tr><td colspan="4" class="text-muted text-center py-4">Belum ada data</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Bootstrap JS -->
@@ -247,14 +337,14 @@
       const statusLine = document.getElementById("status-line");
       const locationMenu = document.getElementById("location-menu");
       const locationBtn = document.getElementById("location-btn");
+      const tableBody = document.getElementById("log-table-body");
 
       let currentLocation = "";
+      let lastCreatedAt = null; // dipakai buat hitung "X detik lalu" secara live
 
       function statusKey(value) {
         return (value || "").toString().toLowerCase();
       }
-
-      let lastCreatedAt = null; // dipakai buat hitung "X detik lalu" secara live
 
       function formatTanggal(date) {
         return new Intl.DateTimeFormat("id-ID", {
@@ -289,6 +379,7 @@
       }
       setInterval(updateElapsed, 1000);
 
+      // --- Referensi pola indexold.html: satu fungsi populate lokasi ---
       async function populateLocations() {
         const { data, error } = await supabase
           .from("greenflow_logs")
@@ -310,7 +401,6 @@
             )
             .join("");
 
-        // pasang event listener setelah render
         locationMenu.querySelectorAll(".dropdown-item").forEach((item) => {
           item.addEventListener("click", (e) => {
             e.preventDefault();
@@ -321,6 +411,8 @@
         });
       }
 
+      // Render semua kartu SEKALIGUS dari satu objek `latest`, persis
+      // seperti indexold.html — supaya tidak ada field yang "ketinggalan".
       function renderStats(latest) {
         const trafficEl = document.getElementById("stat-traffic");
         const iconTraffic = document.getElementById("icon-traffic");
@@ -333,7 +425,7 @@
 
         if (!latest) {
           trafficEl.textContent = "–";
-          iconTraffic.className = "icon-wrap";
+          iconTraffic.setAttribute("class", "icon-wrap");
           durationEl.textContent = "–";
           dotEl.className = "status-dot";
           lastStatusEl.textContent = "–";
@@ -349,7 +441,7 @@
 
         trafficEl.textContent = latest.traffic_status ?? "–";
         trafficEl.className = `value text-${trafficKey}`;
-        iconTraffic.className = `icon-wrap text-${trafficKey}`;
+        iconTraffic.setAttribute("class", `icon-wrap text-${trafficKey}`);
 
         durationLabel.textContent = latest.light_status
           ? `Durasi Lampu ${latest.light_status}`
@@ -370,14 +462,18 @@
         updateElapsed();
       }
 
+      function badgeClass(prefix, value) {
+        const key = (value || "").toString().toLowerCase();
+        return `badge ${prefix}-${key}`;
+      }
+
+      // --- Referensi pola indexold.html: satu fungsi ambil + render data ---
       async function loadData() {
-        // initial load saja (data terakhir saat halaman dibuka).
-        // update selanjutnya ditangani oleh realtime listener di bawah.
         let query = supabase
           .from("greenflow_logs")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(1);
+          .limit(5);
 
         if (currentLocation) query = query.eq("location", currentLocation);
 
@@ -390,40 +486,44 @@
         }
 
         if (!data || data.length === 0) {
-          statusLine.textContent =
-            "Terhubung ke Supabase — belum ada data masuk";
+          statusLine.textContent = "Terhubung ke Supabase — belum ada data masuk";
           renderStats(null);
+          tableBody.innerHTML =
+            '<tr><td colspan="7" class="text-muted text-center py-4">Belum ada data</td></tr>';
           return;
         }
 
+        // satu sumber data untuk kartu ATAS dan tabel BAWAH — tidak ada lagi
+        // kemungkinan salah satu field "ketinggalan" seperti sebelumnya.
         renderStats(data[0]);
-        statusLine.textContent =
-          "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
+
+        tableBody.innerHTML = data.map(row => `
+          <tr>
+            <td>${new Date(row.created_at).toLocaleString("id-ID")}</td>
+            <td>${row.location}</td>
+            <td>${row.vehicle_count}</td>
+            <td><span class="${badgeClass('badge', row.traffic_status)}">${row.traffic_status}</span></td>
+          </tr>
+        `).join("");
+
+        statusLine.textContent = "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
       }
 
-      // Realtime: dengarkan setiap row baru yang masuk ke greenflow_logs,
-      // lalu update tampilan tanpa perlu polling/refresh berulang.
-      supabase
-        .channel("greenflow_logs_changes")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "greenflow_logs" },
-          (payload) => {
-            const row = payload.new;
-            // hanya update tampilan kalau lokasinya cocok dengan filter aktif
-            if (currentLocation && row.location !== currentLocation) return;
-            renderStats(row);
-            statusLine.textContent =
-              "Update terakhir: " + new Date().toLocaleTimeString("id-ID");
-          },
-        )
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            statusLine.textContent = "Realtime aktif — menunggu data…";
-          }
-        });
+      // Splash screen: tampil minimal 800ms supaya tidak "kedip" kalau
+      // data ternyata sudah siap sangat cepat, lalu fade-out halus.
+      function hideSplash() {
+        const splash = document.getElementById("splash-screen");
+        splash.classList.add("splash-hidden");
+        setTimeout(() => { splash.style.display = "none"; }, 500);
+      }
 
-      populateLocations().then(loadData);
+      const splashMinDelay = new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Polling sederhana tiap 5 detik — sama seperti indexold.html.
+      // (Realtime subscription dilepas dari versi ini supaya lebih
+      // sederhana dan tidak butuh setting tambahan di Supabase.)
+      Promise.all([populateLocations().then(loadData), splashMinDelay]).then(hideSplash);
+      setInterval(loadData, 5000);
     </script>
   </body>
 </html>
