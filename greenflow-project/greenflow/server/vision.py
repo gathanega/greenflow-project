@@ -4,9 +4,13 @@ GreenFlow vision + timing logic.
 - detect_vehicles(): runs YOLOv8n over a JPEG frame, returns per-class
   vehicle counts (car/motorcycle/bus/truck).
 - classify_density(): turns a vehicle count into LANCAR / PADAT / MACET.
-- compute_light_program(): turns a density score into red/yellow/green
-  durations, following the [CONTOHFORMATLALULINTAS] baseline given in the
-  spec (MERAH 03:00 / KUNING 00:30 / HIJAU 07:00 at maximum congestion).
+- compute_light_program(): turns that classification into a fixed
+  red/yellow/green program (two-state, not interpolated):
+
+    LANCAR            -> MERAH 05:00 / KUNING 00:30 / HIJAU 01:00 (baseline)
+    PADAT atau MACET  -> MERAH 02:00 / KUNING 01:00 / HIJAU 03:00 (kondisi padat)
+
+  Begitu kondisi kembali LANCAR, program otomatis kembali ke baseline.
 """
 
 from __future__ import annotations
@@ -78,33 +82,34 @@ class LightProgram:
     traffic_status: str
 
 
+# Dua kondisi tetap (bukan interpolasi linear seperti versi sebelumnya).
+BASELINE_PROGRAM = {"red": 300, "yellow": 30, "green": 60}    # 05:00 / 00:30 / 01:00
+CONGESTED_PROGRAM = {"red": 120, "yellow": 60, "green": 180}  # 02:00 / 01:00 / 03:00
+
+
 def compute_light_program(
     vehicle_count: int,
-    calibration_max_count: int,
-    total_cycle_seconds: int = 630,   # 180 + 30 + 420, matches the example
-    yellow_seconds: int = 30,         # fixed, matches [CONTOHFORMATLALULINTAS]
-    green_min_seconds: int = 60,
-    green_max_seconds: int = 420,     # matches HIJAU 07:00 at full congestion
+    calibration_max_count: int = 20,  # dipertahankan untuk kompatibilitas signature, tidak dipakai di logika baru
     density_low: int = 5,
     density_high: int = 15,
 ) -> LightProgram:
     """
-    Maps a vehicle count into a red/yellow/green program.
+    Menentukan program lampu berdasarkan status kepadatan saja (dua
+    kondisi tetap), bukan skor kontinu:
 
-    - density score = vehicle_count / calibration_max_count, clamped to [0,1]
-    - green scales linearly between green_min and green_max with the score
-    - yellow is fixed
-    - red = total_cycle - green - yellow (so at max congestion, with
-      green=420 and yellow=30, red=180 -> exactly the given example)
+    - status LANCAR -> program baseline (MERAH 05:00 / KUNING 00:30 / HIJAU 01:00)
+    - status PADAT atau MACET -> program padat (MERAH 02:00 / KUNING 01:00 / HIJAU 03:00)
+
+    calibration_max_count tidak lagi memengaruhi durasi lampu di logika
+    ini, tapi parameter tetap diterima supaya app.py tidak perlu diubah.
     """
-    score = max(0.0, min(1.0, vehicle_count / max(1, calibration_max_count)))
-    green = round(green_min_seconds + score * (green_max_seconds - green_min_seconds))
-    red = max(30, total_cycle_seconds - green - yellow_seconds)
     status = classify_density(vehicle_count, density_low, density_high)
 
+    program = BASELINE_PROGRAM if status == "LANCAR" else CONGESTED_PROGRAM
+
     return LightProgram(
-        red_seconds=red,
-        yellow_seconds=yellow_seconds,
-        green_seconds=green,
+        red_seconds=program["red"],
+        yellow_seconds=program["yellow"],
+        green_seconds=program["green"],
         traffic_status=status,
     )
