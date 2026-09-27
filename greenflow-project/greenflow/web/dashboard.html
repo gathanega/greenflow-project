@@ -244,32 +244,23 @@
 
         <div class="col-12 col-md-6">
           <div class="dashboard-card">
-            <div class="label" id="label-duration">Durasi Lampu</div>
-            <div class="value-row">
-              <svg class="icon-wrap" viewBox="0 0 24 24" fill="none">
-                <rect
-                  x="8"
-                  y="2.5"
-                  width="8"
-                  height="17"
-                  rx="4"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                />
-                <circle cx="12" cy="7" r="1.6" fill="currentColor" />
-                <circle cx="12" cy="11" r="1.6" fill="currentColor" />
-                <circle cx="12" cy="15" r="1.6" fill="currentColor" />
-                <line
-                  x1="12"
-                  y1="19.5"
-                  x2="12"
-                  y2="21.5"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <div class="value" id="stat-duration">–</div>
+            <div class="label">Program Lampu Saat Ini</div>
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot bg-merah"></span>
+                <span class="fw-semibold text-merah">MERAH</span>
+                <span class="ms-auto fw-bold" id="stat-red">–</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot bg-kuning"></span>
+                <span class="fw-semibold text-kuning">KUNING</span>
+                <span class="ms-auto fw-bold" id="stat-yellow">–</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="status-dot bg-hijau"></span>
+                <span class="fw-semibold text-hijau">HIJAU</span>
+                <span class="ms-auto fw-bold" id="stat-green">–</span>
+              </div>
             </div>
           </div>
         </div>
@@ -416,8 +407,9 @@
       function renderStats(latest) {
         const trafficEl = document.getElementById("stat-traffic");
         const iconTraffic = document.getElementById("icon-traffic");
-        const durationLabel = document.getElementById("label-duration");
-        const durationEl = document.getElementById("stat-duration");
+        const redEl = document.getElementById("stat-red");
+        const yellowEl = document.getElementById("stat-yellow");
+        const greenEl = document.getElementById("stat-green");
         const dotEl = document.getElementById("dot-status");
         const lastStatusEl = document.getElementById("stat-lastStatus");
         const dateEl = document.getElementById("stat-date");
@@ -426,7 +418,9 @@
         if (!latest) {
           trafficEl.textContent = "–";
           iconTraffic.setAttribute("class", "icon-wrap");
-          durationEl.textContent = "–";
+          redEl.textContent = "–";
+          yellowEl.textContent = "–";
+          greenEl.textContent = "–";
           dotEl.className = "status-dot";
           lastStatusEl.textContent = "–";
           dateEl.textContent = "–";
@@ -443,12 +437,17 @@
         trafficEl.className = `value text-${trafficKey}`;
         iconTraffic.setAttribute("class", `icon-wrap text-${trafficKey}`);
 
-        durationLabel.textContent = latest.light_status
-          ? `Durasi Lampu ${latest.light_status}`
-          : "Durasi Lampu";
-        durationEl.textContent =
-          latest.green_duration != null ? `${latest.green_duration} dtk` : "–";
-        durationEl.className = `value text-${lightKey}`;
+        // Backend (vision.py) sekarang cuma punya 2 kondisi tetap:
+        // LANCAR -> baseline, PADAT/MACET -> kondisi padat. Hitung ulang
+        // di sini supaya tidak perlu kolom red/yellow di database.
+        const isCongested = trafficKey === "padat" || trafficKey === "macet";
+        const program = isCongested
+          ? { red: 120, yellow: 60, green: 180 }   // 02:00 / 01:00 / 03:00
+          : { red: 300, yellow: 30, green: 60 };   // 05:00 / 00:30 / 01:00
+
+        redEl.textContent = `${program.red}s`;
+        yellowEl.textContent = `${program.yellow}s`;
+        greenEl.textContent = `${program.green}s`;
 
         dotEl.className = `status-dot bg-${trafficKey}`;
         lastStatusEl.textContent = latest.traffic_status ?? "–";
