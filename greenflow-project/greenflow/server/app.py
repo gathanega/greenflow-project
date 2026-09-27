@@ -10,6 +10,11 @@ compute light program -> store -> serve):
   MODE B ("cctv"): this server itself periodically pulls a snapshot from an
       existing online CCTV API/stream URL, for locations configured with
       mode: cctv in config.yaml. No ESP32-S3 needed for those locations.
+      Two CCTV source types are supported (set with cctv_stream_type):
+        - "snapshot" (default): the URL returns a plain JPEG directly.
+        - "hls": the URL is a live HLS (.m3u8) stream, and a single frame
+          is grabbed from it using ffmpeg (needed for camera providers
+          that only expose a live stream, no still-image endpoint).
 
 Either mode ends up calling process_frame(), which writes one row to the
 Supabase `greenflow_logs` table (used by the web dashboard) and also keeps
@@ -23,8 +28,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
+import subprocess
 import time
 from typing import Optional
+
+# systemd services can run with a more limited PATH than an interactive
+# shell, so "ffmpeg" alone may not resolve even if `apt install ffmpeg`
+# succeeded. Resolve the absolute path once at import time, with a
+# fallback to the common Debian/Ubuntu install location.
+FFMPEG_BIN = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
 
 import requests
 import yaml
@@ -123,6 +136,46 @@ async def ingest_esp32(device_id: str, request: Request, location: str = "defaul
 
 # ------------------------- MODE B: online CCTV pull -------------------------
 
+def grab_frame_ffmpeg(stream_url: str, timeout: int = 20) -> bytes:
+    """Extract a single JPEG frame from a live stream (HLS .m3u8, RTSP, etc.)
+    using ffmpeg. Needed for CCTV providers that only expose a live stream
+    rather than a plain still-image snapshot endpoint."""
+    if not shutil.which(FFMPEG_BIN) and not (FFMPEG_BIN.startswith("/") and __import__("os").path.exists(FFMPEG_BIN)):
+        raise RuntimeError(
+            f"ffmpeg binary not found at '{FFMPEG_BIN}'. "
+            "Install it with: apt install -y ffmpeg"
+        )
+
+    cmd = [
+        FFMPEG_BIN,
+        "-y",
+        "-loglevel", "error",
+        "-i", stream_url,
+        "-frames:v", "1",
+        "-q:v", "2",
+        "-f", "image2pipe",
+        "-vcodec", "mjpeg",
+        "-",
+    ]
+    result = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    if result.returncode != 0 or not result.stdout:
+        stderr = result.stderr.decode(errors="ignore")[:300]
+        raise RuntimeError(f"ffmpeg failed to grab frame: {stderr}")
+    return result.stdout
+
+
+def fetch_cctv_frame(cfg: dict) -> bytes:
+    """Fetch one frame for a mode: cctv location, using whichever method
+    matches cctv_stream_type ("hls" -> ffmpeg, otherwise -> plain GET)."""
+    url = cfg["cctv_snapshot_url"]
+    if cfg.get("cctv_stream_type") == "hls":
+        return grab_frame_ffmpeg(url, timeout=cfg.get("cctv_ffmpeg_timeout", 20))
+
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+    return resp.content
+
+
 async def cctv_poll_loop():
     """Background task: for every location configured with mode: cctv,
     fetch a fresh snapshot on its own interval and run it through the same
@@ -132,9 +185,8 @@ async def cctv_poll_loop():
             if cfg.get("mode") != "cctv":
                 continue
             try:
-                resp = requests.get(cfg["cctv_snapshot_url"], timeout=10)
-                resp.raise_for_status()
-                process_frame(resp.content, location=location, device_id=cfg.get("device_id", location))
+                jpeg_bytes = await asyncio.to_thread(fetch_cctv_frame, cfg)
+                process_frame(jpeg_bytes, location=location, device_id=cfg.get("device_id", location))
             except Exception as e:
                 log.error("[%s] CCTV pull failed: %s", location, e)
         await asyncio.sleep(CONFIG.get("cctv_poll_interval_seconds", 10))
