@@ -10,11 +10,23 @@ compute light program -> store -> serve):
   MODE B ("cctv"): this server itself periodically pulls a snapshot from an
       existing online CCTV API/stream URL, for locations configured with
       mode: cctv in config.yaml. No ESP32-S3 needed for those locations.
-      Two CCTV source types are supported (set with cctv_stream_type):
+      Three CCTV source types are supported (set with cctv_stream_type):
         - "snapshot" (default): the URL returns a plain JPEG directly.
-        - "hls": the URL is a live HLS (.m3u8) stream, and a single frame
-          is grabbed from it using ffmpeg (needed for camera providers
-          that only expose a live stream, no still-image endpoint).
+        - "hls": the URL is a live HLS (.m3u8) stream.
+        - "mjpeg": the URL is a live MJPEG/multipart stream (common for
+          city-run CCTV proxies, e.g. Diskominfo-style "proxy.php" feeds).
+      Both "hls" and "mjpeg" grab a single frame using ffmpeg, since
+      requests.get() alone can't reliably pull one still frame out of a
+      live multi-frame stream.
+
+  LANE FILTERING (ROI): a wide CCTV frame often covers more than one lane
+      or direction of traffic, but the light program should usually react
+      to just the lane feeding that light. Each location in config.yaml
+      can optionally set a `roi` — a polygon (list of [x, y] points, each
+      0.0-1.0, normalized to frame width/height) marking the lane to
+      count. See vision.detect_vehicles() for the matching logic, and
+      GET /api/debug/roi-preview to visually calibrate the polygon against
+      a live frame before committing to config.yaml.
 
 Either mode ends up calling process_frame(), which writes one row to the
 Supabase `greenflow_logs` table (used by the web dashboard) and also keeps
@@ -27,6 +39,7 @@ light controllers via:
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import shutil
 import subprocess
@@ -42,7 +55,8 @@ FFMPEG_BIN = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
 import requests
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from PIL import Image, ImageDraw
 from supabase import Client, create_client
 
 from vision import compute_light_program, detect_vehicles
@@ -73,8 +87,9 @@ def process_frame(jpeg_bytes: bytes, location: str, device_id: str, battery_leve
     calibration_max_count = calib.get("calibration_max_count", 20)
     density_low = calib.get("density_low", 5)
     density_high = calib.get("density_high", 15)
+    roi_polygon = calib.get("roi")  # optional: [[x,y], ...] normalized 0-1, one lane
 
-    detection = detect_vehicles(jpeg_bytes)
+    detection = detect_vehicles(jpeg_bytes, roi_polygon=roi_polygon)
     program = compute_light_program(
         vehicle_count=detection.vehicle_count,
         calibration_max_count=calibration_max_count,
@@ -82,11 +97,21 @@ def process_frame(jpeg_bytes: bytes, location: str, device_id: str, battery_leve
         density_high=density_high,
     )
 
+    # counts_by_class is jsonb, so we can pack the lane-vs-whole-frame
+    # comparison in there without a schema migration. Only added when this
+    # location actually has a `roi` configured, to keep old rows/locations
+    # unchanged.
+    counts_payload = dict(detection.counts_by_class)
+    if roi_polygon:
+        counts_payload["_lane_label"] = calib.get("roi_label", "jalur kanan")
+        counts_payload["_all_lanes_total"] = detection.total_vehicle_count
+        counts_payload["_all_lanes_by_class"] = detection.total_counts_by_class
+
     row = {
         "device_id": device_id,
         "location": location,
-        "vehicle_count": detection.vehicle_count,
-        "counts_by_class": detection.counts_by_class,
+        "vehicle_count": detection.vehicle_count,   # = lane count when roi is set, else whole-frame count
+        "counts_by_class": counts_payload,
         "light_status": "HIJAU",  # status at the moment of capture; dashboard shows history, not live phase
         "green_duration": program.green_seconds,
         "battery_level": battery_level if battery_level is not None else 100,
@@ -166,9 +191,14 @@ def grab_frame_ffmpeg(stream_url: str, timeout: int = 20) -> bytes:
 
 def fetch_cctv_frame(cfg: dict) -> bytes:
     """Fetch one frame for a mode: cctv location, using whichever method
-    matches cctv_stream_type ("hls" -> ffmpeg, otherwise -> plain GET)."""
+    matches cctv_stream_type:
+      - "hls" or "mjpeg": grabbed via ffmpeg (handles live multi-frame
+        streams, including MJPEG/multipart proxies like many city
+        Diskominfo CCTV feeds).
+      - anything else (default "snapshot"): plain GET, URL returns one
+        JPEG directly."""
     url = cfg["cctv_snapshot_url"]
-    if cfg.get("cctv_stream_type") == "hls":
+    if cfg.get("cctv_stream_type") in ("hls", "mjpeg"):
         return grab_frame_ffmpeg(url, timeout=cfg.get("cctv_ffmpeg_timeout", 20))
 
     resp = requests.get(url, timeout=10)
@@ -220,3 +250,65 @@ async def light_latest(location: str = "default"):
 @app.get("/api/health")
 async def health():
     return {"ok": True, "locations_tracked": list(LATEST_PROGRAMS.keys())}
+
+
+# ------------------------- served to the dashboard --------------------------
+
+@app.get("/api/cameras")
+async def list_cameras():
+    """List CCTV-mode locations from config.yaml, so the web dashboard can
+    render a live-view panel without needing access to config.yaml itself.
+    Only the stream URL is exposed (already a public camera feed, not a
+    secret) — never the Supabase keys or other server-only config."""
+    cameras = []
+    for location, cfg in CONFIG.get("locations", {}).items():
+        if cfg.get("mode") == "cctv":
+            cameras.append({
+                "location": location,
+                "stream_url": cfg.get("cctv_snapshot_url"),
+                "stream_type": cfg.get("cctv_stream_type", "snapshot"),
+                "has_roi": bool(cfg.get("roi")),
+            })
+    return {"cameras": cameras}
+
+
+# ------------------------- ROI (lane) calibration ---------------------------
+
+@app.get("/api/debug/roi-preview")
+async def roi_preview(location: str):
+    """Grab one live frame for `location` (must be mode: cctv) and draw the
+    configured `roi` polygon on top of it, so the normalized [x, y]
+    coordinates in config.yaml can be tuned by eye instead of guesswork.
+
+    Open this URL directly in a browser:
+        http://<server>/api/debug/roi-preview?location=Nama%20Lokasi
+
+    If `roi` isn't set yet for this location, the raw frame is returned
+    unmodified so you can still see what you're calibrating against.
+    """
+    cfg = location_calibration(location)
+    if not cfg or cfg.get("mode") != "cctv":
+        raise HTTPException(400, f"location '{location}' tidak ditemukan atau bukan mode: cctv")
+
+    try:
+        jpeg_bytes = await asyncio.to_thread(fetch_cctv_frame, cfg)
+    except Exception as e:
+        raise HTTPException(502, f"gagal ambil frame CCTV: {e}")
+
+    roi = cfg.get("roi")
+    if not roi:
+        return Response(content=jpeg_bytes, media_type="image/jpeg")
+
+    image = Image.open(io.BytesIO(jpeg_bytes)).convert("RGB")
+    width, height = image.size
+
+    draw = ImageDraw.Draw(image, "RGBA")
+    pixel_points = [(x * width, y * height) for x, y in roi]
+    draw.polygon(pixel_points, outline=(255, 0, 0, 255), width=4, fill=(255, 0, 0, 60))
+    label = cfg.get("roi_label", "ROI")
+    label_x, label_y = pixel_points[0]
+    draw.text((label_x + 8, label_y + 8), label, fill=(255, 255, 255, 255))
+
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG", quality=85)
+    return Response(content=buf.getvalue(), media_type="image/jpeg")
