@@ -11,17 +11,28 @@ cctv_poll_interval_seconds: 10
 # match:
 #   - the ?location=... query param the ESP32-S3 firmware sends (Mode A)
 #   - the LOCATION_NAME the ESP32-C6 firmware polls with
-locations:
-  "Simpang Jl. Merdeka - Jl. Sudirman":
     mode: esp32              # this location is fed by an ESP32-S3 camera (Mode A) -> nothing else needed here
     calibration_max_count: 20  # vehicle count that should map to the MAXIMUM green time (420s)
     density_low: 5            # below this count -> LANCAR
     density_high: 15          # at/above this count -> MACET
 
-  "Simpang Jl. Diponegoro":
-    mode: cctv                # this location is fed by an existing online CCTV API instead (Mode B)
-    cctv_snapshot_url: "https://contoh-cctv-provider.example/api/snapshot?cam=diponegoro"
-    device_id: "cctv-diponegoro"
+  "Malang-CCTV":
+    mode: cctv
+    cctv_snapshot_url: "https://cctvmalang.24hour.id/twentyfourhourid/proxy.php?id=032716732487147302736608"
+    cctv_stream_type: hls        # <-- penting: ini live stream HLS, bukan snapshot JPEG biasa
+    device_id: "cctv-malang"
     calibration_max_count: 25
     density_low: 6
     density_high: 18
+    roi_label: "jalur kanan (arah timur, dekat kamera)"
+    roi:
+      - [0.90, 0.09]
+      - [0.81, 0.25]
+      - [0.62, 0.49]
+      - [0.48, 0.74]
+      - [0.44, 0.90]
+      - [0.53, 1.00]
+      - [0.78, 1.00]
+      - [0.94, 0.86]
+      - [0.97, 0.50]
+      - [0.94, 0.18]
